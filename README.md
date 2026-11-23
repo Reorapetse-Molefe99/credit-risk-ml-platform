@@ -12,7 +12,7 @@ explainable, monitored model behind an API and a business dashboard. The model l
 | **Rank ordering** | the riskiest 10% of loans contain 35% of defaults (lift 3.5x); the riskiest 20% contain 54% |
 | **Data** | Home Credit Default Risk: 307,511 applications, 122 columns, 8.1% default rate |
 | **Stack** | scikit-learn · LightGBM · XGBoost · Optuna · SHAP · MLflow · FastAPI · Streamlit · Docker · GitHub Actions |
-| **Live demo** | [Dashboard](https://rl-credit-risk-platform.streamlit.app) · [API docs (Swagger)](https://credit-risk-api-pdf9.onrender.com/docs) · Video: _add link_. Free tiers sleep when idle: the first request takes about a minute. See [docs/deployment.md](docs/deployment.md) |
+| **Live demo** | [Dashboard](https://rl-credit-risk-platform.streamlit.app) · [API docs (Swagger)](https://credit-risk-api-pdf9.onrender.com/docs) · [Demo video (3 min)](docs/video/credit-risk-demo.mp4). Free tiers sleep when idle: the first request takes about a minute. See [docs/deployment.md](docs/deployment.md) |
 
 ## What's inside
 
