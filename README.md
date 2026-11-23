@@ -31,7 +31,8 @@ explainable, monitored model behind an API and a business dashboard. The model l
 
 Portfolio, performance, strategy and monitoring are shown on the real **held-out test split** (61,503 loans,
 aggregates only). The [live demo](https://rl-credit-risk-platform.streamlit.app) runs on a synthetic portfolio,
-because the Home Credit data can't be redistributed, so its numbers differ.
+because the Home Credit data can't be redistributed. It has the real test set's risk mix, but its outcomes are deliberately
+noisier, so the model scores a little lower there (AUC about 0.70) than on the real data.
 
 **Home:** champion model and demo mode
 ![Dashboard home page](docs/images/home.png)

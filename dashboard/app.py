@@ -13,6 +13,8 @@ import urllib.request
 from pathlib import Path
 
 import pandas as pd
+import plotly.graph_objects as go
+import plotly.io as pio
 import streamlit as st
 
 try:
@@ -21,7 +23,7 @@ except ModuleNotFoundError:  # Streamlit Community Cloud installs requirements.t
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from credit_risk import load_config  # noqa: E402
-from credit_risk.ingestion import load_reference, synthetic_applications  # noqa: E402
+from credit_risk.ingestion import load_reference  # noqa: E402
 from credit_risk.predict import (  # noqa: E402
     contributions,
     load_model,
@@ -29,11 +31,20 @@ from credit_risk.predict import (  # noqa: E402
     resolve_model_uri,
     score_frame,
     scored_portfolio,
+    simulated_portfolio,
 )
 
 cfg = load_config()
 GRADE_COLORS = {"A": "#1a9850", "B": "#91cf60", "C": "#fee08b", "D": "#fc8d59", "E": "#d73027"}
 DECISION_COLORS = {"approve": "#1a9850", "refer": "#fdae61", "decline": "#d73027"}
+# Website palette, as in .streamlit/config.toml. Streamlit's theme only recolours plotly.express charts,
+# so the same colours also become the default Plotly template for graph_objects figures.
+TEAL, CORAL, INK = "#1C8A9A", "#F08A7E", "#0B1A2B"
+PALETTE = [TEAL, CORAL, INK, "#38C3CF", "#E0A458", "#9FB1C2"]
+_site_template = go.layout.Template(pio.templates["plotly"])
+_site_template.layout.colorway = PALETTE
+pio.templates["site"] = _site_template
+pio.templates.default = "site"
 STATUS_ICON = {"stable": "🟢", "warning": "🟠", "alert": "🔴", "n/a": "⚪"}
 
 
@@ -55,7 +66,7 @@ def get_reference() -> tuple[pd.DataFrame, str]:
     try:
         return load_reference(cfg), "development sample"
     except FileNotFoundError:
-        df = synthetic_applications(5000, seed=11)
+        df = simulated_portfolio(get_model(), 5000, seed=19, cfg=cfg)
         return df.assign(probability_of_default=score_frame(get_model(), df, cfg)["probability_of_default"]
                          .to_numpy()), "synthetic"
 
@@ -99,7 +110,28 @@ def api_url() -> str | None:
         return None
 
 
+def site_mode() -> bool:
+    """True when the page is embedded in the personal website (`?site=1`). The website then provides the
+    navigation, so the Streamlit sidebar and page menu are hidden."""
+    return st.query_params.get("site") == "1"
+
+
+def controls():
+    """Where page-level controls go: the sidebar normally, the page itself in website mode."""
+    return st.columns([1, 2])[0] if site_mode() else st.sidebar
+
+
+SITE_CSS = """<style>
+[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"], [data-testid="stHeader"] {display: none;}
+[data-testid="stMainBlockContainer"] {padding-top: 1.5rem; padding-bottom: 2rem;}
+[data-testid="stHeading"]:has(h1) {display: none;}
+</style>"""
+
+
 def sidebar_info() -> None:
+    if site_mode():
+        st.html(SITE_CSS)
+        return
     meta = get_metadata()
     st.sidebar.markdown("**Model**")
     if meta:
@@ -134,10 +166,11 @@ def home() -> None:
         c[2].metric("Gini", f"{meta['metrics']['gini']:.3f}")
         c[3].metric("KS", f"{meta['metrics']['ks']:.3f}")
     if source == "synthetic":
-        st.info("**Demo mode:** the Home Credit data can't be redistributed, so this portfolio is **synthetic**. "
-                "The model and its test metrics are real: they come from the exported champion, evaluated on "
-                f"{meta.get('n_test', 0):,} held-out loans. Run locally with HomeLoanData.csv in data/raw/ "
-                "to see the real portfolio.")
+        st.info("**Demo mode:** the Home Credit data can't be redistributed, so this portfolio is **synthetic**: "
+                "simulated applications with the real test set's risk mix, on which the model works well but "
+                "less well than on real data, as on any new population. The model and its test metrics are real: they come from the exported champion, "
+                f"evaluated on {meta.get('n_test', 0):,} held-out loans. Run locally with HomeLoanData.csv in "
+                "data/raw/ to see the real portfolio.")
     st.caption(f"Portfolio: {len(df):,} applications ({source}).")
 
     st.subheader("Pages")
@@ -154,5 +187,5 @@ def home() -> None:
 if __name__ == "__main__":
     st.set_page_config(page_title="Credit Risk Platform", page_icon="📊", layout="wide")
     st.navigation([st.Page(home, title="Home", default=True),
-                   *(st.Page(f"pages/{p.name}") for p in sorted((Path(__file__).parent / "pages").glob("*.py")))]
-                  ).run()
+                   *(st.Page(f"pages/{p.name}") for p in sorted((Path(__file__).parent / "pages").glob("*.py")))],
+                  position="hidden" if site_mode() else "sidebar").run()

@@ -47,7 +47,7 @@ flowchart LR
 | `src/credit_risk/predict.py` | Model resolution and loading, input alignment, PD → grade → decision, SHAP contributions and reason codes, batch CLI |
 | `src/credit_risk/monitoring.py` | PSI for scores and features (numeric and categorical), simulated drift scenarios, drift report, MLflow logging |
 | `api/` | FastAPI service. Pydantic validation in `schemas.py`; the model is loaded once at start-up |
-| `dashboard/` | Streamlit multipage app. `app.py` is the home page and the shared cached loaders. Without loan-level data it runs on a synthetic portfolio and reference (demo mode) |
+| `dashboard/` | Streamlit multipage app. `app.py` is the home page and the shared cached loaders. Without loan-level data it runs on a simulated portfolio and reference with the real PD deciles and deliberately noisier outcomes (demo mode, `predict.simulated_portfolio`) |
 | `render.yaml`, `.streamlit/` | Public deployment: API on Render, dashboard on Streamlit Community Cloud ([deployment.md](deployment.md)) |
 | `artifacts/` | The exported champion (MLflow pyfunc model directory) and its test performance pack |
 
