@@ -1,51 +1,49 @@
-import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from app import STATUS_ICON, cfg, get_model, get_portfolio, sidebar_info
+from app import STATUS_ICON, cfg, get_model, get_portfolio, get_reference, sidebar_info
 
-from credit_risk.ingestion import load_reference, standardise_types
-from credit_risk.monitoring import drift_report
-from credit_risk.predict import score_frame
+from credit_risk.ingestion import standardise_types
+from credit_risk.monitoring import SCENARIOS, drift_report, simulate_drift
+from credit_risk.predict import assign_grade, score_frame
 
 st.set_page_config(page_title="Model Monitoring", page_icon="🛰️", layout="wide")
 sidebar_info()
 st.title("Model Monitoring")
 st.markdown("Compares a **current** population against the **reference** population the champion was developed "
-            "on (data/reference/). PSI < 0.10 stable · 0.10–0.25 monitor · > 0.25 investigate.")
+            "on. PSI < 0.10 stable · 0.10–0.25 monitor · > 0.25 investigate.")
 
-try:
-    reference = load_reference(cfg)
-except FileNotFoundError as e:
-    st.error(str(e))
-    st.stop()
-
+reference, ref_source = get_reference()
 portfolio, source = get_portfolio()
-mode = st.radio("Current population", ["Hold-out portfolio", "Stress scenario", "Upload CSV"], horizontal=True)
+mode = st.radio("Current population", ["Hold-out portfolio", "Simulated drift", "Upload CSV"], horizontal=True)
 
 
 @st.cache_data(show_spinner="Scoring scenario…")
 def stressed(income_shock: float, ext_shift: float, thin_file: float, seed: int = 0) -> pd.DataFrame:
-    rng = np.random.default_rng(seed)
-    df = portfolio.drop(columns=["probability_of_default", "risk_grade", "decision"]).copy()
-    df["AMT_INCOME_TOTAL"] *= 1 + income_shock
-    for c in ("EXT_SOURCE_1", "EXT_SOURCE_2", "EXT_SOURCE_3"):
-        if c in df:
-            df[c] = (df[c] + ext_shift).clip(0, 1)
-            df.loc[rng.random(len(df)) < thin_file, c] = np.nan
+    df = simulate_drift(portfolio, income_shock, ext_shift, thin_file, seed=seed, cfg=cfg)
     return pd.concat([df, score_frame(get_model(), df, cfg)], axis=1)
 
 
 if mode == "Hold-out portfolio":
     current = portfolio
     st.caption(f"{len(current):,} applications ({source})")
-elif mode == "Stress scenario":
+elif mode == "Simulated drift":
+    names = ["custom", *SCENARIOS]
+    preset = st.selectbox("Scenario", names, index=names.index("recession"),
+                          format_func=lambda n: n.replace("_", " ").capitalize())
+    base = {"income_shock": 0.0, "ext_shift": 0.0, "thin_file": 0.0, **SCENARIOS.get(preset, {})}
     c = st.columns(3)
-    shock = c[0].slider("Income shock", -0.5, 0.5, -0.2, 0.05, format="%.2f")
-    shift = c[1].slider("Shift in external bureau scores", -0.3, 0.3, -0.1, 0.01)
-    thin = c[2].slider("Extra share with missing bureau scores", 0.0, 0.8, 0.1, 0.05)
+    shock = c[0].slider("Income shock", -0.5, 0.5, base["income_shock"], 0.05, format="%.2f",
+                        disabled=preset != "custom")
+    shift = c[1].slider("Shift in external bureau scores", -0.3, 0.3, base["ext_shift"], 0.01,
+                        disabled=preset != "custom")
+    thin = c[2].slider("Extra share with missing bureau scores", 0.0, 0.8, base["thin_file"], 0.05,
+                       disabled=preset != "custom")
     current = stressed(shock, shift, thin)
+    st.caption("The simulated borrowers have no observed outcomes, so only **data drift** and **prediction "
+               "drift** are reported here, not AUC or default rates. Reusing the old labels on modified inputs "
+               "would fabricate a performance result.")
 else:
     up = st.file_uploader("CSV with the raw application columns", type="csv")
     if up is None:
@@ -78,7 +76,6 @@ with c1:
 with c2:
     st.subheader("Grade migration")
     grades = list(cfg["risk_grades"])
-    from credit_risk.predict import assign_grade
     ref_g = assign_grade(reference["probability_of_default"], cfg["risk_grades"]).value_counts(normalize=True)
     cur_g = current["risk_grade"].value_counts(normalize=True)
     fig = go.Figure()
@@ -99,5 +96,5 @@ st.plotly_chart(fig, width="stretch")
 fs["status"] = fs["status"].map(lambda s: f"{STATUS_ICON[s]} {s}")
 st.dataframe(fs.style.format({"psi": "{:.4f}", "missing_ref": "{:.1%}", "missing_cur": "{:.1%}"}),
              hide_index=True, width="stretch")
-st.caption(f"Reference: {report['n_reference']:,} development applications · current: {report['n_current']:,}. "
+st.caption(f"Reference: {report['n_reference']:,} applications ({ref_source}) · current: {report['n_current']:,}. "
            "Run `python -m credit_risk.monitoring --current <csv> --log` to record a monitoring run in MLflow.")

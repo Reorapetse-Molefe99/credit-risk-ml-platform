@@ -38,9 +38,19 @@ def ks_statistic(y, p) -> float:
     return float(np.max(tpr - fpr))
 
 
+def capture_at(y, p, frac: float) -> tuple[float, float]:
+    """Share of all defaults found in the riskiest `frac` of cases (recall at k), and the lift over random."""
+    y, p = np.asarray(y), np.asarray(p)
+    k = max(1, int(round(frac * len(y))))
+    top = np.argsort(-p, kind="stable")[:k]
+    recall = y[top].sum() / max(y.sum(), 1)
+    return float(recall), float(recall / (k / len(y)))
+
+
 def classification_metrics(y, p, prefix: str = "") -> dict[str, float]:
     y, p = np.asarray(y), np.asarray(p)
     auc = roc_auc_score(y, p)
+    recall10, lift10 = capture_at(y, p, 0.10)
     m = {
         "roc_auc": auc,
         "gini": 2 * auc - 1,
@@ -50,6 +60,8 @@ def classification_metrics(y, p, prefix: str = "") -> dict[str, float]:
         "log_loss": log_loss(y, np.clip(p, 1e-7, 1 - 1e-7)),
         "observed_default_rate": float(y.mean()),
         "mean_predicted_pd": float(p.mean()),
+        "recall_top10": recall10,       # defaults captured when a team can only work the riskiest 10%
+        "lift_top10": lift10,
     }
     return {f"{prefix}{k}": float(v) for k, v in m.items()}
 

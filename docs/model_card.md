@@ -55,7 +55,23 @@ data (e.g. mortgages, SME lending, other countries) without re-validation.
   applicants contain **54% of all defaults**.
 - **Calibration:** good overall (mean PD within 0.1 pp of the observed rate). The decile-level reliability curve is in
   `artifacts/metrics.json` and on dashboard page 3.
-- **Baseline:** logistic regression (v1) test AUC 0.745. The champion improves on it by +0.024 AUC (+0.047 Gini).
+- **Baseline:** logistic regression (v1, trained on a 30k sample) test AUC 0.745. The champion improves on it by
+  +0.024 AUC (+0.047 Gini).
+- **Challengers on the full data** (same splits, selected on validation AUC):
+
+  | Model | Val AUC | Test AUC | Test Gini | Test Brier |
+  |---|---|---|---|---|
+  | Logistic regression | 0.746 | 0.751 | 0.501 | 0.0682 |
+  | Random forest | 0.743 | 0.747 | 0.494 | 0.0685 |
+  | **LightGBM (this model)** | **0.763** | **0.769** | **0.537** | **0.0670** |
+  | LightGBM + sigmoid calibration | 0.763 | 0.769 | 0.537 | 0.0671 |
+  | LightGBM + isotonic calibration | 0.763 | 0.768 | 0.536 | 0.0672 |
+
+  The calibration layers were fitted on the validation split and evaluated on test. Neither improved the Brier
+  score, so the champion stays uncalibrated.
+- **Collections prioritisation:** working the riskiest 10% of loans captures **35.5%** of defaults (lift 3.5x
+  over random selection). This is default capture, not defaults prevented. A PD model can't show that contacting a
+  customer changes the outcome.
 
 ### Decision outcomes on the test set (approve < 10% ≤ refer < 20% ≤ decline)
 

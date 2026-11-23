@@ -26,6 +26,7 @@ backups/
 reports/*
 !reports/.gitkeep
 .env
+.streamlit/secrets.toml
 
 # OS / editors
 .DS_Store

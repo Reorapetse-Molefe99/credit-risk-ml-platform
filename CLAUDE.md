@@ -9,10 +9,12 @@ the portfolio, scoring, performance, strategy and monitoring views. Start with `
 - `configs/model_config.yaml`: every setting (paths, splits, excluded features, hyper-parameters, MLflow names,
   promotion rules, risk grades, decision cut-offs, strategy and monitoring thresholds)
 - `src/credit_risk/`: `ingestion` (load/split/reference/synthetic), `validation`, `features` (add_features and
-  preprocessing), `train` (pipelines, MLflow, tuning), `evaluate` (metrics, champion/challenger, export),
-  `predict` (load, score, grade, decide, reason codes), `monitoring` (PSI)
+  preprocessing), `train` (pipelines, MLflow, tuning), `calibration` (validation-split calibration layer),
+  `evaluate` (metrics, champion/challenger, export), `predict` (load, score, grade, decide, SHAP, reason codes),
+  `monitoring` (PSI, simulated drift scenarios)
 - `api/` (FastAPI), `dashboard/` (Streamlit; `app.py` also holds the shared cached loaders), `artifacts/` (exported champion)
-- `notebooks/` 01 EDA, 02 features, 03 experiments · `docs/` architecture, model card, data dictionary, agents guide
+- `notebooks/` 01 EDA, 02 features, 03 experiments · `docs/` architecture, model card, data dictionary, deployment, agents guide
+- `render.yaml` and `.streamlit/`: public demo (API on Render, dashboard on Streamlit Community Cloud)
 - `.claude/agents/`: project subagents (see `docs/agents_guide.md`)
 
 ## Commands (always via `uv run`)
@@ -20,9 +22,10 @@ the portfolio, scoring, performance, strategy and monitoring views. Start with `
 - Quick experiment: `uv run python -m credit_risk.train --model lightgbm --sample 40000`
 - Full run and register: `uv run python -m credit_risk.train --model lightgbm --register`
 - Tune: `uv run python -m credit_risk.train --model xgboost --tune --trials 30 --sample 60000`
+- Challengers: `--model rf` · calibration layer on the validation split: `--calibrate sigmoid|isotonic`
 - Validate the latest version: `uv run python -m credit_risk.evaluate` (`--promote` only when asked; it also exports to `artifacts/`)
 - API: `uv run uvicorn api.main:app --reload --port 8000` · Dashboard: `uv run streamlit run dashboard/app.py`
-- Batch score: `uv run python -m credit_risk.predict --input <csv>` · Drift: `uv run python -m credit_risk.monitoring`
+- Batch score: `uv run python -m credit_risk.predict --input <csv>` · Drift: `uv run python -m credit_risk.monitoring [--scenario recession]`
 - Quality gate (same as CI): `uv run ruff check . && uv run pytest -q`
 - After changing dependencies: `uv lock` and then
   `uv export --frozen --no-dev --no-hashes --no-emit-project --format requirements-txt -o requirements.txt` (CI checks they match)
