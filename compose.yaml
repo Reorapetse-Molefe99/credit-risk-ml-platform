@@ -1,0 +1,58 @@
+# Full local platform:  docker compose up --build
+#   MLflow UI   http://localhost:5000
+#   API docs    http://localhost:8000/docs
+#   Dashboard   http://localhost:8501
+name: credit-risk-platform
+
+x-app: &app
+  build: .
+  image: credit-risk-platform:latest
+  restart: unless-stopped
+
+services:
+  mlflow:
+    <<: *app
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --host 0.0.0.0 --port 5000
+      --allowed-hosts mlflow,mlflow:5000,localhost,localhost:5000,127.0.0.1,127.0.0.1:5000
+    ports: ["5000:5000"]
+    volumes: [mlflow-data:/mlflow]
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:5000/health"]
+      interval: 15s
+      start_period: 30s
+
+  api:
+    <<: *app
+    environment:
+      MODEL_URI: ${MODEL_URI:-/app/artifacts/model}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    ports: ["8000:8000"]
+    volumes:
+      - ./artifacts:/app/artifacts:ro       # re-exported champions are picked up on restart
+    depends_on:
+      mlflow: {condition: service_healthy}
+
+  dashboard:
+    <<: *app
+    command: streamlit run dashboard/app.py --server.address 0.0.0.0 --server.port 8501 --server.headless true
+    environment:
+      API_URL: http://api:8000
+      MODEL_URI: ${MODEL_URI:-/app/artifacts/model}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    ports: ["8501:8501"]
+    volumes:
+      - ./data:/app/data                    # real data if present locally, else synthetic demo portfolio
+      - ./artifacts:/app/artifacts:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      start_period: 30s
+    depends_on:
+      api: {condition: service_healthy}
+
+volumes:
+  mlflow-data:

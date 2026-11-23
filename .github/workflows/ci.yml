@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MLFLOW_DISABLE_AGENT_HINT: "1"
+
+jobs:
+  test:
+    name: Lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.8"
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Tests (synthetic data – no loan-level data in CI)
+        run: uv run pytest -q
+
+      - name: Validate requirements.txt matches uv.lock
+        run: |
+          uv export --frozen --no-dev --no-hashes --no-emit-project --format requirements-txt -o /tmp/req.txt
+          diff <(grep -v '^#' requirements.txt) <(grep -v '^#' /tmp/req.txt)
+
+  docker:
+    name: Build & smoke-test image
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build -t credit-risk-platform:ci .
+
+      - name: Smoke-test API with the committed champion model
+        run: |
+          docker run -d --name api -p 8000:8000 credit-risk-platform:ci
+          for i in $(seq 1 30); do curl -fs localhost:8000/health && break; sleep 2; done
+          curl -fs localhost:8000/health | tee /dev/stderr | grep -q '"model_loaded":true'
+          curl -fs -X POST localhost:8000/predict -H 'Content-Type: application/json' \
+            -d '{"AMT_INCOME_TOTAL": 180000, "AMT_CREDIT": 500000, "AMT_ANNUITY": 27000, "EXT_SOURCE_2": 0.6}' \
+            | tee /dev/stderr | grep -q probability_of_default
+
+      - name: Container logs
+        if: always()
+        run: docker logs api || true

@@ -1,0 +1,33 @@
+# Python / tooling
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+*.egg-info/
+build/
+dist/
+
+# Data – never commit loan-level data
+data/raw/*
+data/processed/*
+data/reference/*
+data/scored/
+!data/**/.gitkeep
+
+# MLflow local stores
+mlflow.db
+mlartifacts/
+mlruns/
+backups/
+
+# Local reports & secrets
+reports/*
+!reports/.gitkeep
+.env
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
