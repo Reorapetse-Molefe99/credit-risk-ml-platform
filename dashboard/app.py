@@ -2,8 +2,8 @@
 
     uv run streamlit run dashboard/app.py        # http://localhost:8501
 
-This file is both the home page and the shared helper module for pages/ (they `import app`);
-page content only renders when it runs as the main script.
+This file is the entry point, the Home page and the shared helper module for pages/ (they `import app`).
+Navigation and page content only run when it is the main script.
 """
 from __future__ import annotations
 
@@ -117,8 +117,8 @@ def fmt_amount(x: float) -> str:
     return f"{x:,.0f}"
 
 
-if __name__ == "__main__":
-    st.set_page_config(page_title="Credit Risk Platform", page_icon="📊", layout="wide")
+def home() -> None:
+    """The landing page."""
     sidebar_info()
     st.title("Credit Risk Platform")
     st.markdown(
@@ -149,3 +149,10 @@ if __name__ == "__main__":
         "- **Model Monitoring**: population stability (PSI) of scores and features, with simulated drift scenarios"
     )
     st.caption("Research and portfolio demonstration, not an authorised lending or collections decision system.")
+
+
+if __name__ == "__main__":
+    st.set_page_config(page_title="Credit Risk Platform", page_icon="📊", layout="wide")
+    st.navigation([st.Page(home, title="Home", default=True),
+                   *(st.Page(f"pages/{p.name}") for p in sorted((Path(__file__).parent / "pages").glob("*.py")))]
+                  ).run()
