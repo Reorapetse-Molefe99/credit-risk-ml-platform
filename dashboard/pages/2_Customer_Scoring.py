@@ -134,5 +134,5 @@ with tab_new:
             "REGION_RATING_CLIENT_W_CITY": float(region), **ext,
         }])
         st.caption(f"Credit-to-income {credit / income:.2f} · repayment-to-income {annuity / income:.1%}. "
-                   "Fields not captured here are treated as missing and imputed.")
+                   "Fields not captured here are treated as missing and imputed. Amounts are in the lender's local currency, which the data does not disclose.")
         show_result(app_df)

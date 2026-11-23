@@ -2,7 +2,17 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from app import DECISION_COLORS, GRADE_COLORS, cfg, fmt_amount, get_portfolio, sidebar_info
+from app import (
+    CORAL,
+    DECISION_COLORS,
+    GRADE_COLORS,
+    INK,
+    cfg,
+    controls,
+    fmt_amount,
+    get_portfolio,
+    sidebar_info,
+)
 from plotly.subplots import make_subplots
 
 st.set_page_config(page_title="Portfolio Overview", page_icon="📊", layout="wide")
@@ -12,9 +22,9 @@ st.title("Portfolio Overview")
 df, source = get_portfolio()
 target = cfg["data"]["target"]
 has_target = target in df
-lgd = st.sidebar.slider("Loss given default (LGD)", 0.0, 1.0, float(cfg["strategy"]["lgd"]), 0.05)
+lgd = controls().slider("Loss given default (LGD)", 0.0, 1.0, float(cfg["strategy"]["lgd"]), 0.05)
 df = df.assign(expected_loss=df["probability_of_default"] * lgd * df["AMT_CREDIT"])
-st.caption(f"{len(df):,} applications · {source}")
+st.caption(f"{len(df):,} applications · {source}. Amounts are in the lender's local currency, which the data does not disclose.")
 
 k = st.columns(5)
 k[0].metric("Applications", f"{len(df):,}")
@@ -35,10 +45,11 @@ with left:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_bar(x=g["risk_grade"], y=g["applications"], name="Applications",
                 marker_color=[GRADE_COLORS[x] for x in g["risk_grade"]])
-    fig.add_scatter(x=g["risk_grade"], y=g["mean_pd"], name="Mean PD", mode="lines+markers", secondary_y=True)
+    fig.add_scatter(x=g["risk_grade"], y=g["mean_pd"], name="Mean PD", mode="lines+markers", secondary_y=True,
+                    line_color=INK)
     if has_target:
         fig.add_scatter(x=g["risk_grade"], y=g["default_rate"], name="Observed default rate",
-                        mode="lines+markers", line_dash="dash", secondary_y=True)
+                        mode="lines+markers", line_dash="dash", secondary_y=True, line_color=CORAL)
     fig.update_yaxes(title_text="Rate", tickformat=".0%", secondary_y=True)
     fig.update_layout(height=380, margin=dict(t=10), legend=dict(orientation="h", y=-0.15))
     st.plotly_chart(fig, width="stretch")

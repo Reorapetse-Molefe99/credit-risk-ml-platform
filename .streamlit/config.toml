@@ -5,6 +5,20 @@ headless = true
 [browser]
 gatherUsageStats = false
 
+# Matches the personal website (reorapetsemolefe.co.za), which embeds the dashboard:
+# warm off-white paper, navy text, teal accents, Inter for text and Fraunces for headings.
+# Font URLs must not contain commas: Streamlit reads commas as a list of fallback fonts.
 [theme]
 base = "light"
-primaryColor = "#1f4e79"
+primaryColor = "#1C8A9A"
+backgroundColor = "#F7F5F0"
+secondaryBackgroundColor = "#EEF3F4"
+textColor = "#16232F"
+linkColor = "#1C8A9A"
+borderColor = "#DDE2E5"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, sans-serif"
+headingFont = "Fraunces:https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&display=swap, serif"
+headingFontWeights = 500
+baseRadius = "0.75rem"
+buttonRadius = "full"
+chartCategoricalColors = ["#1C8A9A", "#F08A7E", "#0B1A2B", "#38C3CF", "#E0A458", "#9FB1C2"]

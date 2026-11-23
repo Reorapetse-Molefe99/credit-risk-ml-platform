@@ -17,7 +17,9 @@ flowchart LR
 ```
 
 **No loan-level data is deployed.** The Home Credit data can't be redistributed, so the dashboard runs in demo
-mode: it scores a synthetic portfolio with the real champion model, and it shows the real test-set metrics from
+mode: it scores a synthetic portfolio with the real champion model. The portfolio is drawn to match the real
+test set's PD deciles (aggregates in `metrics.json`), with outcomes drawn from a "true" risk the model only partly captures. The model therefore
+works well on it (AUC about 0.70) but below its real 0.769, as on any new population (`predict.simulated_portfolio`). It also shows the real test-set metrics from
 `artifacts/metrics.json`. The MLflow server stays local. Screenshots of the experiment comparison go in the README.
 
 Free tiers sleep when idle. The first request after a pause takes about a minute. Check the current limits and

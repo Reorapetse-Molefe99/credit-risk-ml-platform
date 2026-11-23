@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from app import cfg, get_global_shap, get_metadata, get_portfolio, sidebar_info
+from app import CORAL, TEAL, cfg, get_global_shap, get_metadata, get_portfolio, sidebar_info
 from plotly.subplots import make_subplots
 
 st.set_page_config(page_title="Model Performance", page_icon="📈", layout="wide")
@@ -58,9 +58,9 @@ with c2:
 st.subheader("Rank ordering: deciles (1 = highest risk)")
 dec = pd.DataFrame(meta["deciles"])
 fig = make_subplots(specs=[[{"secondary_y": True}]])
-fig.add_bar(x=dec["decile"], y=dec["default_rate"], name="Default rate")
+fig.add_bar(x=dec["decile"], y=dec["default_rate"], name="Default rate", marker_color=TEAL)
 fig.add_scatter(x=dec["decile"], y=dec["cum_capture_rate"], name="Cumulative share of defaults captured",
-                mode="lines+markers", secondary_y=True)
+                mode="lines+markers", secondary_y=True, line_color=CORAL)
 fig.update_yaxes(tickformat=".0%")
 fig.update_layout(height=380, xaxis=dict(dtick=1, title="Decile"), margin=dict(t=10),
                   legend=dict(orientation="h", y=1.12))
@@ -87,7 +87,7 @@ else:
     c1.metric("Precision (flagged who default)", f"{tp / max(tp + fp, 1):.1%}")
     c1.metric("Share flagged", f"{flag.mean():.1%}")
     cm = np.array([[tn, fp], [fn, tp]])
-    fig = px.imshow(cm, text_auto=",", color_continuous_scale="Blues", aspect="auto",
+    fig = px.imshow(cm, text_auto=",", color_continuous_scale="Teal", aspect="auto",
                     x=["Predicted low risk", "Predicted high risk"], y=["Did not default", "Defaulted"])
     fig.update_layout(height=320, margin=dict(t=10), coloraxis_showscale=False)
     c2.plotly_chart(fig, width="stretch")

@@ -88,7 +88,7 @@ with tab_approval:
 
     st.success(f"Profit-maximising cut-off under these assumptions: **PD < {best['cutoff']:.1%}**: approval rate "
                f"{best['approval_rate']:.1%}" + (f", bad rate {best['bad_rate']:.2%}" if has_target else "") + ".")
-    st.caption(f"Portfolio: {len(df):,} applications ({source}). Break-even PD for a single loan = "
+    st.caption(f"Portfolio: {len(df):,} applications ({source}). Amounts are in the lender's local currency, which the data does not disclose. Break-even PD for a single loan = "
                f"margin×term / (margin×term + LGD) = {margin * term / (margin * term + lgd):.1%}.")
 
 with tab_collections:

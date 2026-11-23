@@ -92,17 +92,70 @@ def score_frame(model, df: pd.DataFrame, cfg: dict | None = None) -> pd.DataFram
     return out
 
 
+def _weights_for_mean(p: np.ndarray, target: float) -> np.ndarray:
+    """Sampling weights proportional to exp(lam * p), with lam chosen so the weighted mean of p is `target`."""
+    lo, hi = -500.0, 500.0
+    for _ in range(60):
+        lam = (lo + hi) / 2
+        w = np.exp(lam * (p - p.mean()))
+        lo, hi = (lam, hi) if (w * p).sum() / w.sum() < target else (lo, lam)
+    return w / w.sum()
+
+
+def simulated_portfolio(model, n: int = 5000, seed: int = 7, cfg: dict | None = None, signal: float = 0.75,
+                        noise: float = 0.5, shift: float = -0.43) -> pd.DataFrame:
+    """Synthetic applications for public demos: a realistic risk mix on which the model works well, but not
+    perfectly, as on any new population.
+
+    The real data can't be redistributed, but its PD deciles (aggregates in artifacts/metrics.json) can. A pool
+    of synthetic applicants, a share of them with weaker bureau scores, is scored by the champion. Equal numbers
+    are then drawn from each real PD decile, weighted to match the decile's mean PD.
+
+    Outcomes come from a "true" risk the model only partly captures:
+    logit(q) = shift + signal × logit(PD) + noise × N(0, 1), then y ~ Bernoulli(q). With the defaults, the model
+    reaches an AUC of about 0.70 (real test set: 0.769) and slightly under-predicts (8.0% PD vs about 9.4%
+    observed). signal=1, noise=0, shift=0 gives perfectly calibrated outcomes. Without exported deciles, it
+    falls back to plain synthetic applications.
+    """
+    from .ingestion import synthetic_applications
+
+    cfg = cfg or load_config()
+    deciles = model_metadata(cfg).get("deciles")
+    if not deciles:
+        return synthetic_applications(n, seed=seed)
+    rng = np.random.default_rng(seed)
+    pool = synthetic_applications(n * 10, seed=seed).drop(columns=[cfg["data"]["target"]])
+    risky = rng.random(len(pool)) < 0.5                       # weaker bureau scores give a realistic high-risk tail
+    for c in ("EXT_SOURCE_1", "EXT_SOURCE_2", "EXT_SOURCE_3"):
+        if c in pool:
+            pool.loc[risky, c] = np.where(pool.loc[risky, c].isna(), np.nan, rng.beta(2, 4, risky.sum()))
+    p = positive_proba(model.predict(prepare_input(model, pool)))
+    per, picks = n // len(deciles), []
+    for d in sorted(deciles, key=lambda d: d["decile"]):
+        hi = 1.0 if d["decile"] == 1 else d["max_pd"]
+        band = np.flatnonzero((p >= d["min_pd"]) & (p <= hi))
+        w = _weights_for_mean(p[band], d["mean_pd"])
+        picks.append(rng.choice(band, per, replace=len(band) < per * 2, p=w))
+    idx = np.concatenate(picks)
+    out = pool.iloc[idx].reset_index(drop=True)
+    logit = np.log(np.clip(p[idx], 1e-6, 1 - 1e-6) / (1 - np.clip(p[idx], 1e-6, 1 - 1e-6)))
+    true_pd = 1 / (1 + np.exp(-(shift + signal * logit + noise * rng.standard_normal(len(idx)))))
+    out[cfg["data"]["target"]] = (rng.random(len(out)) < true_pd).astype(int)
+    return out
+
+
 def scored_portfolio(model, cfg: dict | None = None, split: str = "test") -> pd.DataFrame:
-    """A scored portfolio for the dashboard: the held-out split if data is available,
-    otherwise synthetic applications (demo mode, `attrs['source'] == 'synthetic'`)."""
-    from .ingestion import make_splits, synthetic_applications
+    """A scored portfolio for the dashboard: the held-out split if data is available, otherwise a simulated
+    portfolio with a similar risk mix (demo mode, `attrs['source'] == 'synthetic'`)."""
+    from .ingestion import make_splits
 
     cfg = cfg or load_config()
     try:
         df = getattr(make_splits(cfg), split).reset_index(drop=True)
         source = f"{split} split"
     except FileNotFoundError:
-        df, source = synthetic_applications(5000, seed=7), "synthetic"
+        # Seed 29 is a typical draw: across 30 seeds the AUC averages 0.705 (real test set: 0.769).
+        df, source = simulated_portfolio(model, 5000, seed=29, cfg=cfg), "synthetic"
     out = pd.concat([df, score_frame(model, df, cfg)], axis=1)
     out.attrs["source"] = source
     return out
