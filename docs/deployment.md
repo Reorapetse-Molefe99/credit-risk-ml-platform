@@ -5,7 +5,7 @@ The public demo has two parts:
 | Component | Host | What it serves | Live |
 |---|---|---|---|
 | Scoring API | [Render](https://render.com), free web service (Docker) | `api/` with the committed champion in `artifacts/model` | [credit-risk-api-pdf9.onrender.com](https://credit-risk-api-pdf9.onrender.com/docs) |
-| Dashboard | [Streamlit Community Cloud](https://streamlit.io/cloud) | `dashboard/app.py`, scoring through the API | _link to follow_ |
+| Dashboard | [Streamlit Community Cloud](https://streamlit.io/cloud) | `dashboard/app.py`, scoring through the API | [rl-credit-risk-platform.streamlit.app](https://rl-credit-risk-platform.streamlit.app) |
 
 ```mermaid
 flowchart LR
