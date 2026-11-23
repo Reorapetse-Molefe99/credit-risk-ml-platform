@@ -27,6 +27,43 @@ explainable, monitored model behind an API and a business dashboard. The model l
   **collections prioritisation** simulators, drift monitoring with simulated scenarios
 - **Responsible AI:** gender excluded from the model; segment fairness reported in the [model card](docs/model_card.md)
 
+## Screenshots
+
+Portfolio, performance, strategy and monitoring are shown on the real **held-out test split** (61,503 loans,
+aggregates only). The [live demo](https://rl-credit-risk-platform.streamlit.app) runs on a synthetic portfolio,
+because the Home Credit data can't be redistributed, so its numbers differ.
+
+**Home:** champion model and demo mode
+![Dashboard home page](docs/images/home.png)
+
+**Portfolio overview:** risk-grade mix with mean PD against observed default rate (8.02% vs 8.07%)
+![Portfolio overview](docs/images/portfolio.png)
+
+**Customer scoring:** a new application scored through the API, with reason codes
+![Customer scoring with reason codes](docs/images/scoring.png)
+
+**Model performance:** discrimination, calibration and rank ordering
+![Model performance](docs/images/performance.png)
+
+**Explainability:** global TreeSHAP importance
+![Global SHAP importance](docs/images/shap.png)
+
+**Approval strategy:** profit and bad rate by PD cut-off
+![Approval strategy simulator](docs/images/strategy.png)
+
+**Collections prioritisation:** working the riskiest 20% of loans first captures 54% of defaults
+![Collections prioritisation](docs/images/collections.png)
+
+**Monitoring:** simulated recession scenario, with score and feature PSI alerts
+![Model monitoring under simulated drift](docs/images/monitoring.png)
+
+**Experiment tracking:** full-data runs compared in MLflow on the test split (logistic regression, random
+forest, LightGBM, and LightGBM with sigmoid and isotonic calibration)
+![MLflow run comparison](docs/images/mlflow.png)
+
+**Scoring API:** FastAPI with Swagger docs
+![API docs](docs/images/api_docs.png)
+
 ## Model comparison
 
 Full-data runs on identical splits (train 196,806 · validation 49,202 · test 61,503). The model is **selected on
