@@ -12,7 +12,7 @@ explainable, monitored model behind an API and a business dashboard. The model l
 | **Rank ordering** | the riskiest 10% of loans contain 35% of defaults (lift 3.5x); the riskiest 20% contain 54% |
 | **Data** | Home Credit Default Risk: 307,511 applications, 122 columns, 8.1% default rate |
 | **Stack** | scikit-learn · LightGBM · XGBoost · Optuna · SHAP · MLflow · FastAPI · Streamlit · Docker · GitHub Actions |
-| **Live demo** | Dashboard: _add link after deploying_ · API docs: _add link_ · Video: _add link_. See [docs/deployment.md](docs/deployment.md) |
+| **Live demo** | Dashboard: _link to follow_ · [API docs (Swagger)](https://credit-risk-api-pdf9.onrender.com/docs) · Video: _add link_. Free tiers sleep when idle: the first request takes about a minute. See [docs/deployment.md](docs/deployment.md) |
 
 ## What's inside
 
@@ -99,7 +99,7 @@ The lifecycle is described in [docs/architecture.md](docs/architecture.md).
 configs/model_config.yaml  all settings: data, model params, MLflow, promotion, grades, decisions, strategy, monitoring
 src/credit_risk/           ingestion · validation · features · train · calibration · evaluate · predict · monitoring
 api/                       FastAPI service (main.py, schemas.py)
-dashboard/                 Streamlit app (app.py + 5 pages)
+dashboard/                 Streamlit app (app.py: entry point and Home, + 5 pages)
 artifacts/                 exported champion model + metrics.json
 render.yaml, .streamlit/   public deployment: Render (API) and Streamlit Community Cloud (dashboard)
 notebooks/                 01 exploratory analysis · 02 feature engineering · 03 model experiments

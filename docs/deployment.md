@@ -2,10 +2,10 @@
 
 The public demo has two parts:
 
-| Component | Host | What it serves |
-|---|---|---|
-| Scoring API | [Render](https://render.com), free web service (Docker) | `api/` with the committed champion in `artifacts/model` |
-| Dashboard | [Streamlit Community Cloud](https://streamlit.io/cloud) | `dashboard/app.py`, scoring through the API |
+| Component | Host | What it serves | Live |
+|---|---|---|---|
+| Scoring API | [Render](https://render.com), free web service (Docker) | `api/` with the committed champion in `artifacts/model` | [credit-risk-api-pdf9.onrender.com](https://credit-risk-api-pdf9.onrender.com/docs) |
+| Dashboard | [Streamlit Community Cloud](https://streamlit.io/cloud) | `dashboard/app.py`, scoring through the API | _link to follow_ |
 
 ```mermaid
 flowchart LR
@@ -39,7 +39,8 @@ Wait for the CI run to pass. Both hosts deploy from `main`.
 2. **New → Blueprint**, pick the repository. Render reads [`render.yaml`](../render.yaml): a Docker web service
    called `credit-risk-api` on the free plan, with health check path `/health`.
 3. Deploy. The Dockerfile starts uvicorn on the `PORT` variable that Render sets.
-4. Check it (replace the URL with yours):
+4. Copy the service URL shown under the service name. Render usually adds a suffix to the name
+   (`credit-risk-api-xxxx.onrender.com`), so don't guess it. Check it:
    ```bash
    curl -s https://<your-service>.onrender.com/health        # {"status":"ok","model_loaded":true,...}
    curl -s -X POST https://<your-service>.onrender.com/predict -H 'Content-Type: application/json' \
@@ -69,6 +70,9 @@ The API has no authentication. It only serves the demo model, holds no data, and
    ```
    Without it the dashboard scores in-process with the bundled model, which also works.
 4. Deploy, open the app, and check the sidebar: **Scoring via: API** means the dashboard is reaching Render.
+   The dashboard waits only 5 seconds for the API's health check. If the API was asleep the sidebar shows
+   **in-process model**: open the API's `/health` once, wait for it to answer, then refresh the dashboard.
+   Secrets can be changed later under the app's **⋮ → Settings → Secrets**; saving restarts the app.
 
 ## 4. Update the README
 
