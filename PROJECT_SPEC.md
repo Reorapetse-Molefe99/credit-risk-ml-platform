@@ -83,7 +83,7 @@ Not redistributed. See `docs/data_dictionary.md` for columns, splits and enginee
 | M5 Serving | FastAPI, batch scoring, Docker, compose | ✅ |
 | M6 Insight | Streamlit dashboard (5 pages) | ✅ |
 | M7 Challengers and demo | Random forest challenger; validation-split calibration layer (tested, not adopted); recall and lift at top 10%; global SHAP and confusion matrix; collections prioritisation simulator; simulated drift scenarios; demo-mode dashboard test; Render and Streamlit Cloud configuration | ✅ |
-| M8 Public launch | Deploy API (Render) and dashboard (Streamlit Cloud); README screenshots, live links and video | ⏳ deployed, screenshots in README; video to do |
+| M8 Public launch | Deploy API (Render) and dashboard (Streamlit Cloud); README screenshots, live links and video | ✅ live demo, screenshots and video in README |
 | M9 Next | Bureau and previous-application features (tables in `data/raw/`); out-of-time style validation; WoE scorecard challenger; scheduled monitoring; API authentication | ⏳ |
 
 ## 9. Risks and assumptions
