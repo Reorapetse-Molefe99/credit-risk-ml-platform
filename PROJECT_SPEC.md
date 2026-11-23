@@ -16,9 +16,10 @@ around it: tracking, validation, deployment, explanation and monitoring.
 | O3 | Reproducible, auditable model lifecycle | Every model traceable to code, params, data fingerprint and metrics in MLflow | ✅ |
 | O4 | Controlled promotion | Champion/challenger gate with rollback | ✅ `@champion` / `@previous_champion` |
 | O5 | Real-time and batch scoring | REST API with validation and reason codes; batch CLI | ✅ |
-| O6 | Business-facing insight | Dashboard: portfolio, customer scoring, performance, strategy, monitoring | ✅ |
+| O6 | Business-facing insight | Dashboard: portfolio, customer scoring, performance and SHAP, approval and collections-prioritisation strategy, monitoring | ✅ top 10% captures 35.5% of defaults (lift 3.5x) |
 | O7 | Responsible use | Protected attributes excluded; fairness reported; explanations for declines | ✅ model card |
 | O8 | Engineering quality | Automated tests and CI on every push; containerised deployment | ✅ |
+| O9 | Public demonstration | Dashboard and API reachable at public URLs with demo data | ⏳ config ready (`render.yaml`, `docs/deployment.md`); needs hosting accounts |
 
 ## 3. Scope
 
@@ -44,14 +45,18 @@ behavioural or collections scoring; IFRS 9 lifetime PD and ECL staging; regulato
 1. **Ingestion and validation:** load raw CSV and standardise types. Block training on schema, target, duplicate-ID or range
    errors. Create reproducible stratified 64/16/20 splits.
 2. **Features:** domain features computed inside the model pipeline (identical in training and serving).
-3. **Training:** logistic regression, histogram GBM, XGBoost and LightGBM. Optional Optuna tuning. Every run logged to MLflow
-   with metrics (AUC, Gini, KS, PR-AUC, Brier, log-loss, calibration), plots, datasets and the model.
+3. **Training:** logistic regression, random forest, histogram GBM, XGBoost and LightGBM. Optional Optuna tuning and an
+   optional calibration layer fitted on the validation split. Every run logged to MLflow with metrics (AUC, Gini, KS,
+   PR-AUC, Brier, log-loss, recall and lift at top 10%, calibration), plots, datasets and the model.
 4. **Evaluation and promotion:** challenger vs champion on the hold-out set; minimum AUC uplift; score-shift warning;
    alias-based promotion with export to `artifacts/`.
 5. **Scoring:** PD → risk grade (A–E) → decision (approve / refer / decline), thresholds in config. Single and batch API
    endpoints with input validation. Reason codes for individual applications.
-6. **Dashboard:** five pages (portfolio overview, customer scoring, model performance, strategy simulator, model monitoring).
-7. **Monitoring:** score and feature PSI against the development reference; reports to file and MLflow.
+6. **Dashboard:** five pages (portfolio overview, customer scoring, model performance with SHAP, strategy simulator with
+   approval cut-offs and collections prioritisation, model monitoring). Runs on synthetic demo data when the loan-level
+   data is absent, so it can be deployed publicly.
+7. **Monitoring:** score and feature PSI against the development reference; simulated drift scenarios that report data
+   and prediction drift only; reports to file and MLflow.
 
 ## 6. Non-functional requirements
 
@@ -73,11 +78,13 @@ Not redistributed. See `docs/data_dictionary.md` for columns, splits and enginee
 |---|---|---|
 | M1 Foundation | Repo structure, config, environment, MLflow server, CI | ✅ |
 | M2 Data | Ingestion, validation, splits, EDA notebook, data dictionary | ✅ |
-| M3 Modelling | Feature engineering, four algorithms, tuning, experiments notebook | ✅ |
+| M3 Modelling | Feature engineering, five algorithms (incl. random forest), tuning, experiments notebook | ✅ |
 | M4 Lifecycle | Registry, champion/challenger, export, model card | ✅ |
 | M5 Serving | FastAPI, batch scoring, Docker, compose | ✅ |
 | M6 Insight | Streamlit dashboard (5 pages) | ✅ |
-| M7 Next | Bureau and previous-application features; out-of-time style validation; WoE scorecard challenger; probability calibration layer; scheduled monitoring; API authentication | ⏳ |
+| M7 Challengers and demo | Random forest challenger; validation-split calibration layer (tested, not adopted); recall and lift at top 10%; global SHAP and confusion matrix; collections prioritisation simulator; simulated drift scenarios; demo-mode dashboard test; Render and Streamlit Cloud configuration | ✅ |
+| M8 Public launch | Deploy API (Render) and dashboard (Streamlit Cloud); README screenshots, live links and video | ⏳ |
+| M9 Next | Bureau and previous-application features (tables in `data/raw/`); out-of-time style validation; WoE scorecard challenger; scheduled monitoring; API authentication | ⏳ |
 
 ## 9. Risks and assumptions
 

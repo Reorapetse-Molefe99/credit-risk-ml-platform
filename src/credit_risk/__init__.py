@@ -6,9 +6,10 @@ ingestion   load raw data, build reproducible splits and the monitoring referenc
 validation  schema / range / quality checks on application data
 features    domain feature engineering and preprocessing
 train       model pipelines, MLflow-tracked training and Optuna tuning
+calibration probability calibration layer fitted on the validation split
 evaluate    credit-risk metrics, champion/challenger validation, promotion and export
 predict     model loading, PD scoring, risk grades and decisions
-monitoring  population stability (PSI) of scores and features
+monitoring  population stability (PSI) of scores and features; simulated drift scenarios
 """
 from __future__ import annotations
 

@@ -41,12 +41,14 @@ flowchart LR
 | `src/credit_risk/ingestion.py` | Raw loading and type standardisation, stratified 64/16/20 splits cached as parquet, monitoring reference sample, synthetic data for tests and demo mode |
 | `src/credit_risk/validation.py` | Schema, target, uniqueness and range checks. Errors block training, warnings are reported |
 | `src/credit_risk/features.py` | `add_features` (row-wise domain features) and preprocessing (impute, one-hot, scale) |
-| `src/credit_risk/train.py` | Model pipelines (logreg, hgb, xgboost, lightgbm), MLflow-tracked training, Optuna tuning (nested runs), MLflow helpers |
-| `src/credit_risk/evaluate.py` | Credit metrics (AUC, Gini, KS, PR-AUC, Brier, deciles), champion/challenger validation, promotion, export |
-| `src/credit_risk/predict.py` | Model resolution and loading, input alignment, PD → grade → decision, reason codes, batch CLI |
-| `src/credit_risk/monitoring.py` | PSI for scores and features (numeric and categorical), drift report, MLflow logging |
+| `src/credit_risk/train.py` | Model pipelines (logreg, rf, hgb, xgboost, lightgbm), MLflow-tracked training, optional calibration, Optuna tuning (nested runs), MLflow helpers |
+| `src/credit_risk/calibration.py` | `PrefitCalibratedClassifier`: sigmoid or isotonic calibration of a fitted model on the validation split |
+| `src/credit_risk/evaluate.py` | Credit metrics (AUC, Gini, KS, PR-AUC, Brier, recall and lift at top 10%, deciles), champion/challenger validation, promotion, export |
+| `src/credit_risk/predict.py` | Model resolution and loading, input alignment, PD → grade → decision, SHAP contributions and reason codes, batch CLI |
+| `src/credit_risk/monitoring.py` | PSI for scores and features (numeric and categorical), simulated drift scenarios, drift report, MLflow logging |
 | `api/` | FastAPI service. Pydantic validation in `schemas.py`; the model is loaded once at start-up |
-| `dashboard/` | Streamlit multipage app. `app.py` is the home page and the shared cached loaders |
+| `dashboard/` | Streamlit multipage app. `app.py` is the home page and the shared cached loaders. Without loan-level data it runs on a synthetic portfolio and reference (demo mode) |
+| `render.yaml`, `.streamlit/` | Public deployment: API on Render, dashboard on Streamlit Community Cloud ([deployment.md](deployment.md)) |
 | `artifacts/` | The exported champion (MLflow pyfunc model directory) and its test performance pack |
 
 ## Design decisions
@@ -65,6 +67,12 @@ loan-level data is git-ignored. Tests and CI use `synthetic_applications()`.
 
 **Strict split discipline.** Features and hyper-parameters are selected on the validation split. The test split
 is used only for reported metrics and the champion/challenger decision.
+
+**Calibration without touching test.** `--calibrate` fits the base model on train and a calibration layer on
+validation, then replaces the pipeline's final step, so every consumer gets calibrated PDs. Validation metrics stay
+those of the uncalibrated base model (the out-of-sample selection metric). `test_uncal_*` and `test_*` measure the
+effect of calibration on data neither step has seen. SHAP reason codes explain the base model's log-odds; both
+calibration methods are monotonic, so the drivers' ranking and direction are unchanged.
 
 **Protected attributes.** `CODE_GENDER` is excluded from the model inputs (and ignored by the API if sent). It
 stays in the data so fairness can be monitored; see `docs/model_card.md`.
@@ -146,26 +154,34 @@ Rollback: `MlflowClient().set_registered_model_alias("credit-risk-pd", "champion
 | MLflow serving | `uv run mlflow models serve -m artifacts/model -p 5001 --env-manager local` | Generic `/invocations` endpoint returning `[P(0), P(1)]` |
 | Docker | `docker build -t credit-risk-platform . && docker run -p 8000:8000 credit-risk-platform` | API using the committed champion |
 | Full stack | `docker compose up --build` | MLflow on :5000, API on :8000, dashboard on :8501 |
+| Public demo | Render + Streamlit Community Cloud | See [deployment.md](deployment.md). The API listens on `$PORT` when set |
 
 ### Monitor
 
 ```bash
 uv run python -m credit_risk.monitoring                          # test split vs reference
 uv run python -m credit_risk.monitoring --current new_month.csv --log
+uv run python -m credit_risk.monitoring --scenario recession     # income_shock · bureau_deterioration · thin_file_growth · recession
 ```
 
 Score PSI and per-feature PSI (numeric and categorical) are calculated against the champion's development
-sample. Thresholds: < 0.10 stable, 0.10–0.25 warning, > 0.25 alert. Reports are written to `reports/` and,
+sample. Thresholds: < 0.10 stable, 0.10–0.25 warning, > 0.25 alert. PSI ignores missing values, so a feature's
+status also escalates when its missing rate moves by more than 5 pp (warning) or 10 pp (alert). Reports are written to `reports/` and,
 with `--log`, to MLflow (`run_type=monitoring`). Dashboard page 5 shows the same numbers interactively,
-including stress scenarios.
+including the simulated scenarios.
+
+**Simulated drift reports data and prediction drift only.** `simulate_drift` perturbs a real population (incomes,
+bureau scores, thin-file share) and drops the target. The old outcomes describe the old borrowers, so attaching them
+to modified inputs would fabricate a performance result.
 
 ---
 
 ## Testing and CI
 
-`tests/` runs entirely on synthetic data (36 tests, about 10 s). It covers ingestion and validation, feature
-engineering (row-wise and leakage-safe), every algorithm's pipeline, the MLflow train → log → load → score
-round trip on a temporary SQLite store, monitoring, and the API (validation, batch, reason codes, degraded mode).
+`tests/` runs entirely on synthetic data (45 tests, about 20 s). It covers ingestion and validation, feature
+engineering (row-wise and leakage-safe), every algorithm's pipeline, calibration, the MLflow train → log → load →
+score round trip on a temporary SQLite store (plain and calibrated), simulated drift and monitoring, the API
+(validation, batch, reason codes, degraded mode), and a demo-mode render of every dashboard page.
 
 `.github/workflows/ci.yml` runs on every push and pull request to `main`:
 
@@ -178,7 +194,8 @@ round trip on a temporary SQLite store, monitoring, and the API (validation, bat
 |---|---|---|
 | `MLFLOW_TRACKING_URI` | `http://127.0.0.1:5000` | Tracking server and registry |
 | `MODEL_URI` | `artifacts/model` | Model for the API and dashboard (path or `models:/…`) |
-| `API_URL` | unset | When set and healthy, the dashboard scores through the API |
+| `API_URL` | unset | When set and healthy, the dashboard scores through the API. Also read from Streamlit secrets |
+| `PORT` | `8000` | Port the API container listens on (Render sets it) |
 | `CREDIT_RISK_CONFIG` | `configs/model_config.yaml` | Alternative config file |
 | `CREDIT_RISK_HOME` | repository root | Project root, when installed outside the repo (Docker sets `/app`) |
 | `MLFLOW_DISABLE_AGENT_HINT` | `1` in Docker | Silences MLflow's tracing-skill log hint |

@@ -1,0 +1,16 @@
+# Render Blueprint for the scoring API (Dashboard -> New -> Blueprint -> pick this repo).
+# Builds the same Dockerfile as CI, serving the committed champion in artifacts/model.
+services:
+  - type: web
+    name: credit-risk-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free                 # free instances sleep when idle; the first request after that takes ~1 minute
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: MODEL_URI
+        value: /app/artifacts/model
+      - key: MLFLOW_DISABLE_AGENT_HINT
+        value: "1"

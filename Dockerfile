@@ -1,6 +1,7 @@
 # One image for the scoring API (default), the Streamlit dashboard and the MLflow server.
 #   docker build -t credit-risk-platform .
 #   docker run -p 8000:8000 credit-risk-platform                       # API -> http://localhost:8000/docs
+# The API listens on $PORT when set (Render and similar hosts inject it), else 8000.
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -31,6 +32,7 @@ RUN uv sync --frozen --no-dev
 
 COPY api ./api
 COPY dashboard ./dashboard
+COPY .streamlit ./.streamlit
 COPY artifacts ./artifacts
 
 RUN useradd --create-home --uid 1000 app \
@@ -40,6 +42,6 @@ USER app
 
 EXPOSE 8000 8501 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-    CMD curl -fs http://localhost:8000/health || exit 1
+    CMD curl -fs "http://localhost:${PORT:-8000}/health" || exit 1
 
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

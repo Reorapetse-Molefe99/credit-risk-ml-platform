@@ -1,6 +1,6 @@
 ---
 name: model-trainer
-description: Runs training and hyper-parameter tuning experiments tracked in MLflow (logreg, hgb, xgboost, lightgbm) and summarises the results. Use when the user wants to train, tune, compare algorithms, or register a new model version.
+description: Runs training and hyper-parameter tuning experiments tracked in MLflow (logreg, rf, hgb, xgboost, lightgbm, optional calibration) and summarises the results. Use when the user wants to train, tune, compare algorithms, or register a new model version.
 tools: Bash, Read, Grep, Glob
 model: sonnet
 ---
@@ -14,8 +14,10 @@ Before starting, check that the tracking server is reachable:
 (it is long-running, so don't start it yourself unless asked).
 
 Commands:
-- Single run: `uv run python -m credit_risk.train --model <logreg|hgb|xgboost|lightgbm> [--sample N] [--param k=v ...] [--run-name NAME]`
-- Tuning: `uv run python -m credit_risk.train --model <lightgbm|xgboost|logreg> --tune --trials N [--sample N]`
+- Single run: `uv run python -m credit_risk.train --model <logreg|rf|hgb|xgboost|lightgbm> [--sample N] [--param k=v ...] [--run-name NAME] [--calibrate sigmoid|isotonic]`
+- Calibration fits a layer on the validation split: `val_*` stays the uncalibrated base model, so compare calibrated
+  runs on `test_brier` vs `test_uncal_brier` (reporting only) and keep selecting on `val_roc_auc`.
+- Tuning: `uv run python -m credit_risk.train --model <lightgbm|xgboost|logreg|rf> --tune --trials N [--sample N]`
 - Default hyper-parameters live in `configs/model_config.yaml -> model.params`. Override per run with `--param`; only change the config file when the user agrees.
 - Add `--register` only for full-data runs (no `--sample`) that the user wants considered for production.
 

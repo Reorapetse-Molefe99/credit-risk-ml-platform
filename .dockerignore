@@ -17,3 +17,4 @@ docs
 .env
 .DS_Store
 .claude
+.streamlit/secrets.toml

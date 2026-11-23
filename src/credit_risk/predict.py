@@ -108,33 +108,43 @@ def scored_portfolio(model, cfg: dict | None = None, split: str = "test") -> pd.
     return out
 
 
-def explain(model, df: pd.DataFrame, top: int = 8) -> pd.DataFrame | None:
-    """Per-feature contributions (log-odds) to the first application's PD – 'reason codes'.
+def contributions(model, df: pd.DataFrame) -> pd.DataFrame | None:
+    """Per-application, per-feature contributions to the log-odds of default (SHAP values).
 
-    Supported for LightGBM (exact TreeSHAP via pred_contrib), XGBoost and logistic regression.
-    One-hot columns are summed back to their source feature. Returns None for other models.
+    Exact TreeSHAP for LightGBM (`pred_contrib`) and XGBoost (`pred_contribs`). Coefficient × standardised value
+    for logistic regression. One-hot columns are summed back to their source feature. Returns None for other
+    models (e.g. random forest). For a calibrated model these explain the base model's log-odds; calibration is
+    monotonic, so the ranking and direction of the drivers are unchanged.
     """
     from sklearn.pipeline import Pipeline
+
+    from .calibration import base_estimator
 
     raw = model.get_raw_model()
     if not isinstance(raw, Pipeline):
         return None
-    est = raw.steps[-1][1]
-    Xt = Pipeline(raw.steps[:-1]).transform(prepare_input(model, df.head(1)))
-    names = list(Xt.columns)
+    est = base_estimator(raw.steps[-1][1])
+    Xt = Pipeline(raw.steps[:-1]).transform(prepare_input(model, df))
     if hasattr(est, "booster_"):                               # LightGBM
-        contrib = np.asarray(est.predict(Xt, pred_contrib=True))[0, :-1]
+        contrib = np.asarray(est.predict(Xt, pred_contrib=True))[:, :-1]
     elif hasattr(est, "get_booster"):                          # XGBoost
         import xgboost as xgb
-        contrib = est.get_booster().predict(xgb.DMatrix(Xt), pred_contribs=True)[0, :-1]
+        contrib = est.get_booster().predict(xgb.DMatrix(Xt), pred_contribs=True)[:, :-1]
     elif hasattr(est, "coef_"):                                # logistic regression
-        contrib = est.coef_[0] * Xt.iloc[0].to_numpy(dtype=float)
+        contrib = Xt.to_numpy(dtype=float) * est.coef_[0]
     else:
         return None
-    base = [n.split("__")[0] for n in names]
-    out = (pd.DataFrame({"feature": base, "contribution": contrib})
-           .groupby("feature", as_index=False)["contribution"].sum())
-    engineered = raw.steps[0][1].transform(prepare_input(model, df.head(1))).iloc[0]
+    base = [n.split("__")[0] for n in Xt.columns]
+    return pd.DataFrame(contrib, index=df.index, columns=Xt.columns).T.groupby(base).sum().T
+
+
+def explain(model, df: pd.DataFrame, top: int = 8) -> pd.DataFrame | None:
+    """Reason codes: the largest contributions to the first application's PD (see `contributions`)."""
+    c = contributions(model, df.head(1))
+    if c is None:
+        return None
+    out = pd.DataFrame({"feature": c.columns, "contribution": c.iloc[0].to_numpy()})
+    engineered = model.get_raw_model().steps[0][1].transform(prepare_input(model, df.head(1))).iloc[0]
     out["value"] = [engineered.get(f) for f in out["feature"]]
     out["direction"] = np.where(out["contribution"] > 0, "increases risk", "decreases risk")
     return out.reindex(out["contribution"].abs().sort_values(ascending=False).index).head(top).reset_index(drop=True)
